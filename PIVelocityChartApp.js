@@ -13,6 +13,7 @@ Ext.define('PIVelocityChartApp', {
         defaultSettings: {
             bucketBy: 'quarter',
             piType: 'portfolioitem/feature',
+            aggregateBy: 'count',
             query: ''
         }
     },
@@ -71,6 +72,30 @@ Ext.define('PIVelocityChartApp', {
                         this.refreshWithNewContext(context);
                     }
                 }
+            },
+            {
+                name: 'aggregateBy',
+                xtype: 'rallycombobox',
+                plugins: ['rallyfieldvalidationui'],
+                fieldLabel: 'Aggregate By',
+                displayField: 'name',
+                valueField: 'value',
+                editable: false,
+                allowBlank: false,
+                width: 300,
+                store: {
+                    fields: ['name', 'value'],
+                    data: [
+                        { name: 'Accepted Leaf Story Count', value: 'acceptedleafcount' },
+                        { name: 'Accepted Leaf Story Plan Estimate', value: 'acceptedleafplanest' },
+                        { name: 'Count', value: 'count' },
+                        { name: 'Leaf Story Count', value: 'leafcount' },
+                        { name: 'Leaf Story Plan Estimate', value: 'leafplanest' },
+                        { name: 'Preliminary Estimate', value: 'prelimest' },
+                        { name: 'Refined Estimate', value: 'refinedest' }
+                    ]
+                },
+                lastQuery: ''
             },
             {
                 name: 'bucketBy',
@@ -175,6 +200,7 @@ Ext.define('PIVelocityChartApp', {
             calculatorType: 'Calculator',
             calculatorConfig: {
                 bucketBy: this.getSetting('bucketBy'),
+                aggregateBy: this.getSetting('aggregateBy')
             },
             chartConfig: {
                 chart: { type: 'column' },
@@ -185,7 +211,7 @@ Ext.define('PIVelocityChartApp', {
                 yAxis: {
                     min: 0,
                     title: {
-                        text: 'Days'
+                        text: this._getYAxisLabel()
                     }
                 },
                 plotOptions: {
@@ -209,8 +235,12 @@ Ext.define('PIVelocityChartApp', {
         this._addChart();
     },
 
+    _getYAxisLabel: function() {
+        return this.getSetting('aggregateBy').indexOf('count') >= 0 ? 'Count' : 'Points';
+    },
+
     _getChartFetch: function() {
-        return ['ActualStartDate', 'ActualEndDate', 'Release'];
+        return _.compact(['ActualStartDate', 'ActualEndDate', 'Release', Utils.getFieldForAggregationType(this.getSetting('aggregateBy'))]);
     },
 
     _getChartSort: function() {
