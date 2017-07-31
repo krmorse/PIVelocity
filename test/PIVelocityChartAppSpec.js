@@ -117,4 +117,17 @@ describe('PIVelocityChartApp', function() {
             expect(gridboard.chartConfig.storeConfig.limit).toBe(Infinity);
         });
     });
+
+    pit('should generate the right y-axis label for throughput charts', function() {
+        return renderChart({ settings: { aggregateBy: 'count' } }).then(function() {
+            expect(gridboard.chartConfig.chartConfig.yAxis.title.text).toBe('Count');
+        });
+    });
+
+    pit('should generate the right y-axis label for velocity charts', function() {
+        return renderChart({ settings: { aggregateBy: 'refinedest' } }).then(function() {
+            var estimateUnit = gridboard.getContext().getWorkspace().WorkspaceConfiguration.ReleaseEstimateUnitName;
+            expect(gridboard.chartConfig.chartConfig.yAxis.title.text).toBe(estimateUnit);
+        });
+    });
 });
