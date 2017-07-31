@@ -97,6 +97,14 @@ describe('PIVelocityChartApp', function() {
         });
     });
 
+    pit('should order by release date when bucketing by release', function() {
+        return renderChart({ settings: { bucketBy: 'release' }}).then(function() {
+            var sorters = gridboard.chartConfig.storeConfig.sorters;
+            expect(sorters.length).toBe(1);
+            expect(sorters[0]).toEqual({ property: 'Release.ReleaseDate', direction: 'ASC' });
+        });
+    });
+
     pit('should pass the right context', function() {
         return renderChart().then(function() {
             expect(gridboard.context).toBe(app.getContext());
