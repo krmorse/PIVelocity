@@ -236,7 +236,8 @@ Ext.define('PIVelocityChartApp', {
     },
 
     _getYAxisLabel: function() {
-        return this.getSetting('aggregateBy').indexOf('count') >= 0 ? 'Count' : 'Points';
+        var estimateUnitName = this.getContext().getWorkspace().WorkspaceConfiguration.ReleaseEstimateUnitName;
+        return this.getSetting('aggregateBy').indexOf('count') >= 0 ? 'Count' : estimateUnitName;
     },
 
     _getChartFetch: function() {
