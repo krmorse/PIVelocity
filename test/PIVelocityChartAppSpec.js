@@ -32,11 +32,27 @@ describe('PIVelocityChartApp', function() {
         });
     });
 
-    pit('should only load finished pis', function() {
+    pit('should show an error flare if the type is not configured correctly', function() {
+        var notificationStub = Rally.test.Mock.stub(Rally.ui.notify.Notifier, 'showError');
+        app = Rally.test.Harness.launchApp('PIVelocityChartApp', { settings: { piType: 'portfolioitem/foo'}});
+        return onceCalled(notificationStub).then(function() {
+            expect(notificationStub.firstCall.args[0].message).toContain('Unable to load model type "portfolioitem/foo".');
+        });
+    });
+
+    pit('should only load finished pis when bucketing by date', function() {
         return renderChart().then(function() {
             var filters = gridboard.storeConfig.filters;
             expect(filters.length).toBe(1);
             expect(filters[0]).toEqual({ property: 'ActualEndDate', operator: '!=', value: null });
+        });
+    });
+
+    pit('should only load pis in a release when bucketing by release', function() {
+        return renderChart({ settings: { bucketBy: 'release' } }).then(function() {
+            var filters = gridboard.storeConfig.filters;
+            expect(filters.length).toBe(1);
+            expect(filters[0]).toEqual({ property: 'Release', operator: '!=', value: null });
         });
     });
 
@@ -89,7 +105,7 @@ describe('PIVelocityChartApp', function() {
         });
     });
 
-    pit('should order by actual end date', function() {
+    pit('should order by actual end date when bucketing by date', function() {
         return renderChart().then(function() {
             var sorters = gridboard.chartConfig.storeConfig.sorters;
             expect(sorters.length).toBe(1);
@@ -128,6 +144,20 @@ describe('PIVelocityChartApp', function() {
         return renderChart({ settings: { aggregateBy: 'refinedest' } }).then(function() {
             var estimateUnit = gridboard.getContext().getWorkspace().WorkspaceConfiguration.ReleaseEstimateUnitName;
             expect(gridboard.chartConfig.chartConfig.yAxis.title.text).toBe(estimateUnit);
+        });
+    });
+
+    pit('should enable the legend for release based reports', function() {
+        return renderChart({ settings: { bucketBy: 'release' } }).then(function() {
+            var estimateUnit = gridboard.getContext().getWorkspace().WorkspaceConfiguration.ReleaseEstimateUnitName;
+            expect(gridboard.chartConfig.chartConfig.legend.enabled).toBe(true);
+        });
+    });
+
+    pit('should disable the legend for enddate based reports', function() {
+        return renderChart({ settings: { bucketBy: 'quarter' } }).then(function() {
+            var estimateUnit = gridboard.getContext().getWorkspace().WorkspaceConfiguration.ReleaseEstimateUnitName;
+            expect(gridboard.chartConfig.chartConfig.legend.enabled).toBe(false);
         });
     });
 });

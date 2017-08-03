@@ -18,19 +18,23 @@ Ext.define('PIVelocityChartApp', {
         }
     },
 
-    launch: function() {
+    launch: function () {
         Rally.data.wsapi.ModelFactory.getModel({
             type: this.getSetting('piType'),
         }).then({
-            success: function(model) {
+            success: function (model) {
                 this.model = model;
                 this._addChart();
+            },
+            failure: function() {
+                Rally.ui.notify.Notifier.showError({ message: 'Unable to load model type "' + 
+                    this.getSetting('piType') + '". Please verify the settings are configured correctly.' });
             },
             scope: this
         });
     },
 
-    getSettingsFields: function() {
+    getSettingsFields: function () {
         return [
             {
                 name: 'piType',
@@ -41,7 +45,7 @@ Ext.define('PIVelocityChartApp', {
                 autoSelect: false,
                 validateOnChange: false,
                 validateOnBlur: false,
-                fieldLabel: 'Type', 
+                fieldLabel: 'Type',
                 shouldRespondToScopeChange: true,
                 storeConfig: {
                     model: 'TypeDefinition',
@@ -62,7 +66,7 @@ Ext.define('PIVelocityChartApp', {
                         combo.fireEvent('typeselected', combo.getValue(), combo.context);
                     },
                     ready: function (combo) {
-                      combo.fireEvent('typeselected', combo.getValue(), combo.context);
+                        combo.fireEvent('typeselected', combo.getValue(), combo.context);
                     }
                 },
                 bubbleEvents: ['typeselected'],
@@ -111,16 +115,17 @@ Ext.define('PIVelocityChartApp', {
                     data: [
                         { name: 'Month', value: 'month' },
                         { name: 'Quarter', value: 'quarter' },
-                        { name: 'Release', value: 'release' }
+                        { name: 'Release', value: 'release' },
+                        { name: 'Year', value: 'year' }
                     ]
                 },
                 lastQuery: '',
                 handlesEvents: {
                     typeselected: function (type) {
-                         Rally.data.ModelFactory.getModel({
+                        Rally.data.ModelFactory.getModel({
                             type: type,
-                            success: function(model) {
-                                this.store.filterBy(function(record) {
+                            success: function (model) {
+                                this.store.filterBy(function (record) {
                                     return record.get('value') !== 'release' ||
                                         model.typeDefinition.Ordinal === 0;
                                 });
@@ -139,7 +144,7 @@ Ext.define('PIVelocityChartApp', {
         ];
     },
 
-    _addChart: function() {
+    _addChart: function () {
         var context = this.getContext(),
             whiteListFields = ['Milestones', 'Tags'],
             modelNames = [this.model.typePath],
@@ -148,7 +153,7 @@ Ext.define('PIVelocityChartApp', {
                 toggleState: 'chart',
                 chartConfig: this._getChartConfig(),
                 plugins: [{
-                    ptype:'rallygridboardinlinefiltercontrol',
+                    ptype: 'rallygridboardinlinefiltercontrol',
                     showInChartMode: true,
                     inlineFilterButtonConfig: {
                         stateful: true,
@@ -159,16 +164,16 @@ Ext.define('PIVelocityChartApp', {
                             quickFilterPanelConfig: {
                                 defaultFields: [],
                                 addQuickFilterConfig: {
-                                   whiteListFields: whiteListFields
+                                    whiteListFields: whiteListFields
                                 }
                             },
                             advancedFilterPanelConfig: {
-                               advancedFilterRowsConfig: {
-                                   propertyFieldConfig: {
-                                       whiteListFields: whiteListFields
-                                   }
-                               }
-                           }
+                                advancedFilterRowsConfig: {
+                                    propertyFieldConfig: {
+                                        whiteListFields: whiteListFields
+                                    }
+                                }
+                            }
                         }
                     }
                 }],
@@ -182,12 +187,11 @@ Ext.define('PIVelocityChartApp', {
         this.add(gridBoardConfig);
     },
 
-    _getChartConfig: function() {
+    _getChartConfig: function () {
         return {
             xtype: 'rallychart',
-            chartColors: [
-                "#005EB8" // $blue
-            ],
+            chartColors: this._isByRelease() ? 
+                ["#CCCCCC","#00a9e0","#009933"] : ["#009933"],
             storeType: 'Rally.data.wsapi.Store',
             storeConfig: {
                 context: this.getContext().getDataContext(),
@@ -204,7 +208,7 @@ Ext.define('PIVelocityChartApp', {
             },
             chartConfig: {
                 chart: { type: 'column' },
-                legend: { enabled: false },
+                legend: { enabled: this._isByRelease() },
                 title: {
                     text: ''
                 },
@@ -212,20 +216,31 @@ Ext.define('PIVelocityChartApp', {
                     min: 0,
                     title: {
                         text: this._getYAxisLabel()
-                    }
+                    },
+                    stackLabels: {
+                        enabled: true,
+                        style: {
+                            fontWeight: 'bold',
+                            color: 'gray'
+                        }
+                    },
+                    reversedStacks: true
                 },
                 plotOptions: {
                     column: {
+                        stacking: 'normal',
                         dataLabels: {
                             enabled: false
-                        }
+                        },
+                        showInLegend: true,
+                        colorByPoint: false
                     }
                 }
             }
         };
     },
 
-    onTimeboxScopeChange: function() {
+    onTimeboxScopeChange: function () {
         this.callParent(arguments);
 
         var gridBoard = this.down('rallygridboard');
@@ -235,35 +250,37 @@ Ext.define('PIVelocityChartApp', {
         this._addChart();
     },
 
-    _getYAxisLabel: function() {
+    _getYAxisLabel: function () {
         var estimateUnitName = this.getContext().getWorkspace().WorkspaceConfiguration.ReleaseEstimateUnitName;
         return this.getSetting('aggregateBy').indexOf('count') >= 0 ? 'Count' : estimateUnitName;
     },
 
-    _getChartFetch: function() {
+    _getChartFetch: function () {
         return _.compact(['ActualStartDate', 'ActualEndDate', 'Release', Utils.getFieldForAggregationType(this.getSetting('aggregateBy'))]);
     },
 
-    _getChartSort: function() {
-        if (this.getSetting('bucketBy') === 'release') {
+    _getChartSort: function () {
+        if (this._isByRelease()) {
             return [{ property: 'Release.ReleaseDate', direction: 'ASC' }];
         } else {
             return [{ property: 'ActualEndDate', direction: 'ASC' }];
         }
     },
 
-    _getFilters: function() {
-        var queries = [{
-            property: 'ActualEndDate',
-            operator: '!=',
-            value: null
-        }];
+    _getFilters: function () {
+        var queries = [];
 
-        if (this.getSetting('bucketBy') === 'release') {
+        if (this._isByRelease()) {
             queries.push({
                 property: 'Release',
                 operator: '!=',
-                vaue: null
+                value: null
+            });
+        } else {
+            queries.push({
+                property: 'ActualEndDate',
+                operator: '!=',
+                value: null
             });
         }
 
@@ -275,5 +292,9 @@ Ext.define('PIVelocityChartApp', {
             queries.push(Rally.data.QueryFilter.fromQueryString(this.getSetting('query')));
         }
         return queries;
+    },
+
+    _isByRelease: function () {
+        return this.getSetting('bucketBy') === 'release';
     }
 });
